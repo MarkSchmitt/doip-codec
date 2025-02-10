@@ -42,6 +42,41 @@ mod tests {
     use tokio_util::{bytes::BytesMut, codec::Decoder};
 
     #[test]
+    fn test_decode_broken_message() {
+        let mut decoder = DoipCodec {};
+        let mut bytes = BytesMut::new();
+        // DOIP ACK message with (optional) previous message field - this broke the parser
+        // as the header length was calculated by using the parsed payloads to_bytes().len
+        // which was shorter, as it ignored the last 3 bytes ...
+        let src = [
+            0x02u8, 0xfd, 0x80, 0x02, 0x00, 0x00, 0x00, 0x08, 0x11, 0x65, 0x0f, 0x0d, 0x00, 0x22,
+            0xf1, 0x90,
+        ];
+        bytes.extend_from_slice(&src);
+
+        let msg = decoder.decode(&mut bytes);
+        assert!(msg.is_ok(), "Expected to receive a result.");
+
+        assert!(
+            msg.as_ref().unwrap().is_some(),
+            "Expected to receive a defined message."
+        );
+
+        let res = msg.unwrap().unwrap();
+        assert_eq!(
+            res.header,
+            DoipHeader {
+                protocol_version: DoipVersion::Iso13400_2012,
+                inverse_protocol_version: 0xfd,
+                payload_type: PayloadType::DiagnosticMessageAck,
+                payload_length: 8
+            },
+            "Unexpected message: {:?}",
+            res
+        );
+    }
+
+    #[test]
     fn test_decode_single_message() {
         let mut decoder = DoipCodec {};
         let mut bytes = BytesMut::new();

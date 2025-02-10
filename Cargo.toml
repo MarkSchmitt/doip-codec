@@ -16,7 +16,7 @@ categories = [
 ]
 
 [dependencies]
-doip-definitions = "1.0.0"
+doip-definitions = { git = "https://github.com/MarkSchmitt/doip-definitions.git", branch = "fix/1.0.3_doip_header_decode_length" }
 thiserror = "2.0.9"
 tokio-util = { version = "0.7.13", features = ["codec"] }
 
