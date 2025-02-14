@@ -1,16 +1,17 @@
-use doip_definitions::message::DoipMessage;
+use doip_definitions::{error::ParseError, message::DoipMessage};
 use tokio_util::bytes::{Buf, BytesMut};
 
 use crate::{error::DecodeError, DoipCodec};
 
 pub const MAX: usize = 8 * 1024 * 1024;
+pub const MIN_DOIP_HEADER_SIZE: usize = 8;
 
 impl tokio_util::codec::Decoder for DoipCodec {
     type Item = DoipMessage;
     type Error = DecodeError;
 
     fn decode(&mut self, src: &mut BytesMut) -> Result<Option<Self::Item>, Self::Error> {
-        if src.is_empty() {
+        if src.is_empty() || src.len() < MIN_DOIP_HEADER_SIZE {
             return Ok(None);
         };
         if src.len() > MAX {
@@ -27,7 +28,12 @@ impl tokio_util::codec::Decoder for DoipCodec {
                 src.advance(msg.header.payload_length as usize + 8);
                 Ok(Some(msg))
             }
-            Err(err) => Err(DecodeError::ParseError(err)),
+            Err(err) => {
+                if err == ParseError::IncompletePayload {
+                    return Ok(None);
+                }
+                Err(DecodeError::ParseError(err))
+            }
         }
     }
 }
